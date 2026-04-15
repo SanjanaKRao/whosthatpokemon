@@ -7,14 +7,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Who's That Pokémon?</title>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-C5GW7NHK10"></script>
     <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-C5GW7NHK10');
+        window.GA_MEASUREMENT_ID = 'G-C5GW7NHK10';
     </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-C5GW7NHK10"></script>
+    <script src="js/tracking.js"></script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -894,6 +891,14 @@
         let guessesRemaining = 3;
         let shownPokemonIds = new Set(); // Track Pokemon already shown this session
 
+        function trackEvent(eventName, params = {}) {
+            if (!window.tracking) {
+                return;
+            }
+
+            window.tracking.track(eventName, params);
+        }
+
         // Leaderboard functions
         function getLeaderboard() {
             const data = localStorage.getItem('pokemonLeaderboard');
@@ -910,6 +915,12 @@
             leaderboard = leaderboard.slice(0, 5);
             localStorage.setItem('pokemonLeaderboard', JSON.stringify(leaderboard));
             renderLeaderboard();
+
+            trackEvent('leaderboard_saved', {
+                score: playerScore,
+                streak: playerStreak,
+                leaderboard_size: leaderboard.length
+            });
         }
 
         function renderLeaderboard() {
@@ -1007,6 +1018,12 @@
             if (score > 0 && playerName) {
                 saveToLeaderboard(playerName, score, maxStreak);
             }
+
+            trackEvent('game_completed', {
+                final_score: score,
+                best_streak: maxStreak,
+                pokemon_seen: shownPokemonIds.size
+            });
         }
         // Fetch a random Gen 1 Pokemon (IDs 1-150) - no repeats per session
         async function fetchRandomPokemon() {
@@ -1042,6 +1059,10 @@
             };
 
             guessesRemaining = 3;
+            trackEvent('pokemon_loaded', {
+                pokemon_number: randomId,
+                pokemon_seen: shownPokemonIds.size
+            });
             displayPokemon();
         }
 
@@ -1103,6 +1124,11 @@
                 return;
             }
 
+            trackEvent('guess_submitted', {
+                attempt_number: 4 - guessesRemaining,
+                guess_length: guess.length
+            });
+
             if (guess === currentPokemon.name.toLowerCase()) {
                 const pointsEarned = guessesRemaining; // 3 points for first try, 2 for second, 1 for third
                 score += pointsEarned;
@@ -1130,10 +1156,11 @@
 
                 updateStats();
 
-                gtag('event', 'pokemon_correct', {
-                    event_category: 'game',
-                    event_label: currentPokemon.name,
-                    value: score
+                trackEvent('pokemon_correct', {
+                    pokemon_name: currentPokemon.name,
+                    points_earned: pointsEarned,
+                    score: score,
+                    streak: streak
                 });
 
                 setTimeout(() => {
@@ -1152,6 +1179,11 @@
                         feedback.innerHTML = `<span class="feedback-title">Wrong!</span><span class="hint-emoji">🤫</span> Abilities:  <strong>${abilitiesHint}</strong><br><span class="guesses-left">(${guessesRemaining} guess left)</span>`;
                     }
                     feedback.className = 'feedback incorrect visible';
+
+                    trackEvent('pokemon_incorrect', {
+                        pokemon_name: currentPokemon.name,
+                        guesses_remaining: guessesRemaining
+                    });
                 } else {
                     // Out of guesses - reveal Pokemon
                     if (streak > 0) {
@@ -1178,6 +1210,10 @@
 
                     revealed = true;
                     document.getElementById('guessInput').disabled = true;
+
+                    trackEvent('pokemon_missed', {
+                        pokemon_name: currentPokemon.name
+                    });
 
                     setTimeout(() => {
                         transitionToNextPokemon();
@@ -1218,9 +1254,9 @@
             streak = 0;
             document.getElementById('guessInput').disabled = true;
 
-            gtag('event', 'pokemon_skip', {
-                event_category: 'game',
-                event_label: currentPokemon.name
+            trackEvent('pokemon_skip', {
+                pokemon_name: currentPokemon.name,
+                score: score
             });
 
             updateStats();
@@ -1258,9 +1294,17 @@
 
         function handleStreakBreak() {
             const playerName = document.getElementById('playerName').value.trim();
+            const streakBeforeReset = maxStreak;
+            const scoreBeforeReset = score;
             if (score > 0 && playerName) {
                 saveToLeaderboard(playerName, score, maxStreak);
             }
+
+            trackEvent('streak_broken', {
+                score: scoreBeforeReset,
+                best_streak: streakBeforeReset
+            });
+
             // Reset for new game
             score = 0;
             maxStreak = 0;
@@ -1282,6 +1326,10 @@
                 button.classList.remove('muted');
                 icon.className = 'fas fa-volume-up';
             }
+
+            trackEvent('audio_toggled', {
+                muted: isMuted
+            });
         }
 
         function capitalize(str) {
@@ -1299,6 +1347,8 @@
 
             // Fetch the first Pokemon before showing
             await fetchRandomPokemon();
+
+            trackEvent('game_started');
 
             // Fade out overlay
             overlay.style.transition = 'opacity 0.4s ease';
@@ -1339,7 +1389,6 @@
             document.getElementById('game').style.display = 'block';
         });
     </script>
-    <script src="js/tracking.js"></script>
 </body>
 
 </html>
