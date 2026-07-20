@@ -891,42 +891,160 @@
         }
 
         @media (max-width: 768px) {
-            .game-row {
+            .game-container {
+                padding: 84px 16px 28px;
+                margin: 0 auto 28px;
+                max-width: none;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            #game,
+            .game-layout,
+            .game-row,
+            .current-stats,
+            .guess-section,
+            .right-column,
+            .scoreboard,
+            .feedback,
+            .generation-picker {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .game-layout {
                 flex-direction: column;
+                align-items: center;
+            }
+
+            .current-stats {
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-bottom: 20px;
+                justify-content: center;
+                padding-left: 0;
+            }
+
+            .current-stat {
+                flex: 1 1 calc(50% - 6px);
+                padding: 12px 16px;
+                justify-content: center;
+                min-width: 0;
+            }
+
+            .current-stat label {
+                font-size: 9px;
+            }
+
+            .current-stat .value {
+                font-size: 18px;
+            }
+
+            #playerName {
+                width: 100%;
+                font-size: 11px;
+                min-width: 0;
+            }
+
+            #playerCountry {
+                min-width: 56px;
+            }
+
+            #playerCountry,
+            #playerName {
+                background: transparent;
+                border: none;
+                color: #ffcb05;
+                outline: none;
+            }
+
+            #playerName,
+            .guess-input,
+            .generation-trigger,
+            .generation-option,
+            .btn,
+            .play-button {
+                touch-action: manipulation;
+            }
+
+            .game-row {
+                width: 100%;
+                flex-direction: column;
+                justify-content: center;
+                gap: 16px;
+                padding: 24px 18px 28px;
+                min-height: 580px;
+                height: auto;
+            }
+
+            .game-content {
+                flex-direction: column;
+                justify-content: center;
                 gap: 20px;
-                background-size: cover;
-                padding: 20px;
-                min-height: 400px;
+            }
+
+            .start-overlay {
+                align-items: flex-start;
+                padding: 20px 14px 28px;
+                overflow-y: auto;
+            }
+
+            .start-content {
+                width: min(100%, 700px);
+            }
+
+            .start-title {
+                font-size: clamp(30px, 10vw, 42px);
+                -webkit-text-stroke: 6px #2152da;
+                line-height: 1.35;
             }
 
             .title {
-                font-size: 24px;
+                font-size: clamp(26px, 8.5vw, 38px);
             }
 
             .big-line {
-                font-size: 32px;
+                font-size: clamp(32px, 10vw, 46px);
             }
 
             .question-mark {
-                font-size: 24px;
-                top: -10px;
+                -webkit-text-stroke: 6px #2152da;
+                font-size: clamp(28px, 10vw, 40px);
+                top: 2px;
+                margin-left: 10px;
             }
 
             .pokemon-display {
+                width: 100%;
+                height: auto;
                 padding: 0;
                 margin-left: 0;
+                justify-content: center;
+            }
+
+            .question-section {
+                width: 100%;
+                height: auto;
+                min-height: 0;
+                margin-left: 0;
+                text-align: center;
             }
 
             .pokemon-image-container {
-                width: 200px;
-                height: 200px;
+                width: min(100%, 260px);
+                height: auto;
+                aspect-ratio: 1;
             }
 
             .generation-picker {
-                width: min(360px, 100%);
+                width: min(420px, 100%);
+                height: auto;
+                padding: 18px 16px 16px;
             }
 
             .generation-menu {
+                position: static;
+                margin-top: 10px;
                 grid-template-columns: 1fr;
             }
 
@@ -934,14 +1052,127 @@
                 grid-column: auto;
             }
 
+            .generation-trigger,
+            .generation-option {
+                font-size: 9px;
+            }
+
+            .generation-icon-image,
+            .generation-icon-fallback {
+                width: 40px;
+                height: 40px;
+            }
+
+            .guess-section {
+                width: 100%;
+                margin-top: 18px;
+                margin-left: 0;
+                justify-content: center;
+            }
+
+            .guess-controls {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .guess-input {
+                width: 100%;
+                padding: 14px 16px;
+            }
+
+            .buttons {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 100%;
+                gap: 10px;
+            }
+
             .btn {
+                width: 100%;
+                min-height: 48px;
                 font-size: 10px;
-                padding: 12px 20px;
+                padding: 12px 18px;
             }
 
             .stats {
                 gap: 15px;
                 font-size: 16px;
+            }
+
+            .scoreboard {
+                padding: 18px 16px;
+            }
+
+            .scoreboard-title {
+                font-size: 20px;
+            }
+
+            .leaderboard-entry {
+                gap: 8px;
+                padding: 8px 10px;
+            }
+
+            .feedback {
+                min-height: 88px;
+                padding: 18px 16px;
+            }
+
+            .mute-button {
+                width: 44px;
+                height: 44px;
+                font-size: 20px;
+                top: 16px;
+                right: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 76px 12px 24px;
+            }
+
+            .current-stat {
+                flex-basis: 100%;
+            }
+
+            .game-row {
+                padding: 20px 14px 24px;
+            }
+
+            .title {
+                font-size: 24px;
+            }
+
+            .big-line {
+                font-size: 30px;
+            }
+
+            .question-mark {
+                font-size: 28px;
+                top: 0;
+            }
+
+            .play-button {
+                width: 100%;
+                font-size: 13px;
+                padding: 16px 20px;
+            }
+
+            .generation-label {
+                font-size: 9px;
+                line-height: 1.5;
+            }
+
+            .generation-trigger-label {
+                gap: 8px;
+            }
+
+            .leaderboard-rank,
+            .leaderboard-name,
+            .leaderboard-score,
+            .leaderboard-streak {
+                font-size: 10px;
             }
         }
     </style>
