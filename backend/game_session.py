@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from random import choice
+from urllib.parse import urlparse
 
 import requests
 from flask import session
@@ -20,16 +21,47 @@ def get_active_game_session() -> dict:
     return state
 
 
-@lru_cache(maxsize=2048)
-def fetch_pokemon_name(pokemon_id: int) -> str:
+@lru_cache(maxsize=1)
+def fetch_pokemon_name_index() -> dict[int, str]:
     try:
-        response = requests.get(f"{POKEAPI_BASE_URL}/{pokemon_id}", timeout=10)
+        response = requests.get(f"{POKEAPI_BASE_URL}?limit=2000", timeout=10)
         response.raise_for_status()
         payload = response.json()
     except (requests.RequestException, ValueError) as exc:
         raise RuntimeError("Pokemon lookup failed.") from exc
 
-    name = str(payload.get("name") or "").strip().lower()
+    results = payload.get("results")
+    if not isinstance(results, list):
+        raise RuntimeError("Pokemon lookup failed.")
+
+    name_index: dict[int, str] = {}
+    for row in results:
+        if not isinstance(row, dict):
+            continue
+
+        name = str(row.get("name") or "").strip().lower()
+        url = str(row.get("url") or "").strip()
+        if not name or not url:
+            continue
+
+        path_parts = [part for part in urlparse(url).path.split("/") if part]
+        if not path_parts:
+            continue
+
+        try:
+            pokemon_id = int(path_parts[-1])
+        except ValueError:
+            continue
+
+        name_index[pokemon_id] = name
+
+    if not name_index:
+        raise RuntimeError("Pokemon lookup failed.")
+    return name_index
+
+
+def fetch_pokemon_name(pokemon_id: int) -> str:
+    name = fetch_pokemon_name_index().get(int(pokemon_id))
     if not name:
         raise RuntimeError("Pokemon lookup failed.")
     return name

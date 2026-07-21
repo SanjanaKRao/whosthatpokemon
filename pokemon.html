@@ -2016,7 +2016,7 @@
 
                 revealed = true;
                 document.getElementById('guessInput').disabled = true;
-                await syncLeaderboardToServer(getPlayerNameForSave());
+                void syncLeaderboardToServer(getPlayerNameForSave());
 
                 trackEvent('pokemon_correct', {
                     pokemon_name: currentPokemon.name,
@@ -2086,7 +2086,7 @@
 
             setTimeout(() => {
                 transitionToNextPokemon();
-            }, 2000);
+            }, 1400);
         }
 
         async function skipPokemon() {
@@ -2141,7 +2141,7 @@
 
             setTimeout(() => {
                 transitionToNextPokemon();
-            }, 2000);
+            }, 1400);
         }
 
         function transitionToNextPokemon() {
