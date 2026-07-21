@@ -53,3 +53,11 @@ If you already created `pokemon_generation_icons` when it only supported Gen 1-3
 - `.env` should define `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for server-side access.
 - `css/styles.css` and `js/tracking.js` are present so referenced asset paths resolve correctly during deployment.
 - The game fetches Pokemon data from `https://pokeapi.co/`, so internet access is required while playing.
+
+## Analytics
+
+- Google Analytics 4 is enabled on `pokemon.html` with measurement ID `G-170PNPL4BD`.
+- `js/tracking.js` initializes `gtag` and exposes `window.tracking.track(...)` for custom frontend events.
+- Gameplay events currently include round start/completion, guesses, skips, streak breaks, leaderboard syncs, generation selection, initialization failures, and generation-specific outcome tracking.
+- Session analytics now include `session_exit` and `game_abandoned` so you can measure quit points and time-on-page from gameplay context.
+- Device analytics now include a lightweight `device_context_detected` event with viewport bucket, orientation, and touch capability, in addition to GA4's built-in device category reports.

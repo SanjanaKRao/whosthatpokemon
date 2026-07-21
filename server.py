@@ -6,7 +6,14 @@ from werkzeug.exceptions import BadRequest
 
 from backend.config import DEFAULT_LEADERBOARD_LIMIT, GENERATION_ICONS_TABLE_NAME, ROOT_DIR, load_config
 from backend.errors import SupabaseRequestError
-from backend.game_session import get_next_pokemon_for_session, start_generation_session
+from backend.game_session import (
+    get_active_game_session,
+    get_next_pokemon_for_session,
+    skip_current_pokemon_for_session,
+    start_generation_session,
+    store_leaderboard_entry_id,
+    submit_guess_for_session,
+)
 from backend.generation_catalog import GenerationIconRepository
 from backend.leaderboard import LeaderboardRepository, parse_limit
 from backend.supabase import SupabaseClient
@@ -59,7 +66,9 @@ def post_leaderboard() -> tuple:
         if payload is None:
             payload = {}
 
-        saved_entry = leaderboard_repository.save(payload)
+        saved_entry = leaderboard_repository.save(payload, session_state=get_active_game_session())
+        if saved_entry.get("id"):
+            store_leaderboard_entry_id(int(saved_entry["id"]))
         response = {
             "entry": saved_entry,
             "entries": leaderboard_repository.fetch(limit=DEFAULT_LEADERBOARD_LIMIT),
@@ -103,6 +112,34 @@ def get_game_pokemon() -> tuple:
         return jsonify(get_next_pokemon_for_session()), 200
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+@app.post("/api/game/guess")
+def post_game_guess() -> tuple:
+    try:
+        payload = request.get_json(silent=False)
+        if payload is None:
+            payload = {}
+
+        return jsonify(submit_guess_for_session(payload.get("guess"))), 200
+    except BadRequest:
+        return jsonify({"error": "Request body must be valid JSON."}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
+
+
+@app.post("/api/game/skip")
+def post_game_skip() -> tuple:
+    try:
+        return jsonify(skip_current_pokemon_for_session()), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
 
 
 @app.get("/")

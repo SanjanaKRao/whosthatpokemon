@@ -68,15 +68,20 @@ class LeaderboardRepository:
             }
         )
 
-    def save(self, payload: dict) -> dict:
-        entry_id = payload.get("id")
+    def save(self, payload: dict, *, session_state: dict) -> dict:
+        score = normalize_non_negative_int(session_state.get("score"), "score")
+        if score == 0:
+            raise ValueError("Score must be greater than 0 before saving to the leaderboard.")
+
+        max_streak = normalize_non_negative_int(session_state.get("max_streak"), "streak")
         entry = {
             "name": normalize_name(payload.get("name")),
             "country": normalize_country(payload.get("country")),
-            "score": normalize_non_negative_int(payload.get("score"), "score"),
-            "streak": normalize_non_negative_int(payload.get("streak"), "streak"),
-            "generation_icon_url": normalize_optional_text(payload.get("generation_icon_url"), "generation_icon_url"),
+            "score": score,
+            "streak": max_streak,
+            "generation_icon_url": normalize_optional_text(session_state.get("generation_icon_url"), "generation_icon_url"),
         }
+        entry_id = session_state.get("leaderboard_entry_id")
 
         if entry_id:
             normalized_id = normalize_non_negative_int(entry_id, "id")

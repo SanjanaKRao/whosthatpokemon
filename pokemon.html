@@ -2,30 +2,35 @@
 <html lang="en">
 
 <head>
-    <link rel="icon" href="/assets/SKR.png" type="image/x-icon">
+    <link rel="icon" href="/assets/red_bluewhite_explosion_bgd.png" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Who's That Pokémon?</title>
+    <meta name="description" content="Test your Gen 1-9 Pokemon knowledge in this Who's That Pokemon guessing game.">
+    <link rel="canonical" href="https://sanjanakrao.com/pokemon.html">
 
     <script>
-        window.GA_MEASUREMENT_ID = 'G-QKPN77236S';
+        window.GA_MEASUREMENT_ID = 'G-170PNPL4BD';
     </script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QKPN77236S"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-170PNPL4BD"></script>
     <script src="js/tracking.js"></script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://sanjanakrao.com/pokemon.html">
-    <meta property="og:title" content="Who's That Pokémon? - Sanjana K Rao">
-    <meta property="og:description" content="Test your Gen 1 Pokémon knowledge! Can you catch 'em all?">
-    <meta property="og:image" content="https://sanjanakrao.com/assets/lioness_og.png">
+    <meta property="og:title" content="Who's That Pokemon?">
+    <meta property="og:description" content="Test your Gen 1-9 Pokemon knowledge in this Who's That Pokemon guessing game.">
+    <meta property="og:image" content="https://sanjanakrao.com/assets/og.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="2648">
+    <meta property="og:image:height" content="1412">
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://sanjanakrao.com/pokemon.html">
-    <meta property="twitter:title" content="Who's That Pokémon? - Sanjana K Rao">
-    <meta property="twitter:description" content="Test your Gen 1 Pokémon knowledge! Can you catch 'em all?">
-    <meta property="twitter:image" content="https://sanjanakrao.com/assets/lioness_landscape.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://sanjanakrao.com/pokemon.html">
+    <meta name="twitter:title" content="Who's That Pokemon?">
+    <meta name="twitter:description" content="Test your Gen 1-9 Pokemon knowledge in this Who's That Pokemon guessing game.">
+    <meta name="twitter:image" content="https://sanjanakrao.com/assets/og.png">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -1366,7 +1371,7 @@
         let maxStreak = 0;
         let revealed = false;
         let isMuted = false;
-        let guessesRemaining = 3;
+        let guessesRemaining = 0;
         let leaderboardEntries = [];
         let lastLeaderboardSyncSnapshot = null;
         let currentLeaderboardRecordId = null;
@@ -1378,6 +1383,12 @@
         let currentGenerationTotal = 0;
         let pokemonSeenCount = 0;
         let selectedGenerationKey = '';
+        let pageEnteredAt = Date.now();
+        let pageVisibleSince = document.visibilityState === 'visible' ? Date.now() : null;
+        let totalVisibleDurationMs = 0;
+        let hasTrackedSessionExit = false;
+        let hasStartedGame = false;
+        let hasCompletedGame = false;
         const generationRangeByKey = {
             gen1: '1-151',
             gen2: '152-251',
@@ -1397,6 +1408,130 @@
             }
 
             window.tracking.track(eventName, params);
+        }
+
+        function updateVisibleDuration() {
+            const now = Date.now();
+            if (document.visibilityState === 'hidden') {
+                if (pageVisibleSince !== null) {
+                    totalVisibleDurationMs += Math.max(0, now - pageVisibleSince);
+                    pageVisibleSince = null;
+                }
+                return;
+            }
+
+            if (pageVisibleSince === null) {
+                pageVisibleSince = now;
+            }
+        }
+
+        function getSessionDurationSeconds() {
+            return Math.round((Date.now() - pageEnteredAt) / 1000);
+        }
+
+        function getVisibleDurationSeconds() {
+            const activeVisibleMs = pageVisibleSince === null
+                ? totalVisibleDurationMs
+                : totalVisibleDurationMs + Math.max(0, Date.now() - pageVisibleSince);
+            return Math.round(activeVisibleMs / 1000);
+        }
+
+        function getViewportBucket() {
+            const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+
+            if (viewportWidth < 768) {
+                return 'mobile';
+            }
+
+            if (viewportWidth < 1024) {
+                return 'tablet';
+            }
+
+            if (viewportWidth < 1440) {
+                return 'desktop';
+            }
+
+            return 'large_desktop';
+        }
+
+        function getSessionStage() {
+            const generationPicker = document.getElementById('generationPicker');
+
+            if (hasCompletedGame) {
+                return 'completed';
+            }
+
+            if (!hasStartedGame) {
+                if (generationPicker && !generationPicker.hidden) {
+                    return 'generation_picker';
+                }
+
+                return 'landing';
+            }
+
+            if (currentPokemon && !revealed) {
+                return 'guessing';
+            }
+
+            if (currentPokemon && revealed) {
+                return 'reveal';
+            }
+
+            return 'loading_pokemon';
+        }
+
+        function trackDeviceContext() {
+            trackEvent('device_context_detected', {
+                viewport_bucket: getViewportBucket(),
+                screen_orientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
+                touch_enabled: ('ontouchstart' in window) || navigator.maxTouchPoints > 0
+            });
+        }
+
+        function trackSessionExit(reason) {
+            if (hasTrackedSessionExit) {
+                return;
+            }
+
+            updateVisibleDuration();
+            hasTrackedSessionExit = true;
+
+            const sessionDurationSeconds = getSessionDurationSeconds();
+            const visibleDurationSeconds = getVisibleDurationSeconds();
+            const sessionStage = getSessionStage();
+            const activeGeneration = currentGenerationKey || selectedGenerationKey || 'none';
+            const guessesUsed = currentPokemon && !revealed ? 3 - guessesRemaining : 0;
+
+            trackEvent('session_exit', {
+                exit_reason: reason,
+                session_stage: sessionStage,
+                generation: activeGeneration,
+                pokemon_seen: pokemonSeenCount,
+                score: score,
+                streak: streak,
+                guesses_remaining: currentPokemon && !revealed ? guessesRemaining : 0,
+                guesses_used: guessesUsed,
+                session_duration_seconds: sessionDurationSeconds,
+                visible_duration_seconds: visibleDurationSeconds,
+                game_started: hasStartedGame,
+                game_completed: hasCompletedGame,
+                transport_type: 'beacon'
+            });
+
+            if (hasStartedGame && !hasCompletedGame) {
+                trackEvent('game_abandoned', {
+                    quit_stage: sessionStage,
+                    generation: activeGeneration,
+                    pokemon_seen: pokemonSeenCount,
+                    score: score,
+                    streak: streak,
+                    guesses_remaining: currentPokemon && !revealed ? guessesRemaining : 0,
+                    guesses_used: guessesUsed,
+                    quit_after_seconds: sessionDurationSeconds,
+                    visible_duration_seconds: visibleDurationSeconds,
+                    transport_type: 'beacon'
+                });
+            }
         }
 
         function getPlayerNameForSave() {
@@ -1515,10 +1650,17 @@
         }
 
         function selectGenerationOption(generationKey) {
+            const previousGenerationKey = selectedGenerationKey;
             selectedGenerationKey = generationKey;
             renderGenerationSelection();
             closeGenerationMenu();
             setGenerationError('');
+
+            if (generationKey && generationKey !== previousGenerationKey) {
+                trackEvent('generation_selected', {
+                    generation: generationKey
+                });
+            }
         }
 
         async function fetchGenerationOptions() {
@@ -1542,6 +1684,9 @@
             document.getElementById('playButton').hidden = true;
             picker.hidden = false;
             setGenerationError('');
+            trackEvent('generation_picker_opened', {
+                available_generations: generationOptions.length
+            });
             document.getElementById('generationTrigger').focus();
         }
 
@@ -1552,6 +1697,11 @@
             currentGenerationIconUrl = generation.icon_url || currentGenerationIconUrl || '';
             currentGenerationTotal = Number(sessionState.total_count) || 0;
             pokemonSeenCount = Number(sessionState.seen_count) || 0;
+            score = Number(sessionState.score) || 0;
+            streak = Number(sessionState.streak) || 0;
+            maxStreak = Number(sessionState.max_streak) || 0;
+            guessesRemaining = Number(sessionState.guesses_remaining) || 0;
+            updateStats();
         }
 
         // Leaderboard functions
@@ -1566,6 +1716,7 @@
                 leaderboardEntries = Array.isArray(data.entries) ? data.entries : [];
             } catch (error) {
                 console.error('Failed to load leaderboard:', error);
+                trackEvent('leaderboard_load_failed');
                 leaderboardEntries = [];
             }
 
@@ -1573,19 +1724,17 @@
         }
 
         // queues leaderboard syncs so updates don’t race
-        async function syncLeaderboardToServer(name, playerScore, playerStreak) {
-            if (!name || playerScore === 0) return;
+        async function syncLeaderboardToServer(name) {
+            if (!name || score === 0) return;
 
-            const syncTask = leaderboardSyncChain.then(() => sendLeaderboardSync(name, playerScore, playerStreak));
+            const syncTask = leaderboardSyncChain.then(() => sendLeaderboardSync(name));
             leaderboardSyncChain = syncTask.catch(() => {});
             return syncTask;
         }
 
-        async function sendLeaderboardSync(name, playerScore, playerStreak) {
+        async function sendLeaderboardSync(name) {
             const country = document.getElementById('playerCountry').value || '🌍';
-            const selectedOption = getSelectedGenerationOption();
-            const generationIconUrl = currentGenerationIconUrl || (selectedOption ? (selectedOption.icon_url || '') : '');
-            const snapshotKey = `${currentLeaderboardRecordId || 'new'}|${name}|${country}|${playerScore}|${playerStreak}|${generationIconUrl}`;
+            const snapshotKey = `${currentLeaderboardRecordId || 'new'}|${name}|${country}|${score}|${maxStreak}|${currentGenerationKey}`;
             if (lastLeaderboardSyncSnapshot === snapshotKey) {
                 return;
             }
@@ -1597,12 +1746,8 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        id: currentLeaderboardRecordId ? Number(currentLeaderboardRecordId) : undefined,
                         name,
-                        country,
-                        score: playerScore,
-                        streak: playerStreak,
-                        generation_icon_url: generationIconUrl
+                        country
                     })
                 });
 
@@ -1614,16 +1759,17 @@
                 if (data.entry && data.entry.id) {
                     currentLeaderboardRecordId = String(data.entry.id);
                 }
-                lastLeaderboardSyncSnapshot = `${currentLeaderboardRecordId || 'new'}|${name}|${country}|${playerScore}|${playerStreak}|${generationIconUrl}`;
+                lastLeaderboardSyncSnapshot = `${currentLeaderboardRecordId || 'new'}|${name}|${country}|${score}|${maxStreak}|${currentGenerationKey}`;
                 await fetchLeaderboardFromServer();
 
                 trackEvent('leaderboard_saved', {
-                    score: playerScore,
-                    streak: playerStreak,
+                    score: score,
+                    streak: maxStreak,
                     leaderboard_size: leaderboardEntries.length
                 });
             } catch (error) {
                 console.error('Failed to save leaderboard score:', error);
+                trackEvent('leaderboard_save_failed');
                 throw error;
             }
         }
@@ -1633,7 +1779,28 @@
                 return;
             }
 
-            await syncLeaderboardToServer(getPlayerNameForSave(), score, streak);
+            await syncLeaderboardToServer(getPlayerNameForSave());
+        }
+
+        async function postGameAction(path, payload = null) {
+            const requestOptions = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (payload !== null) {
+                requestOptions.body = JSON.stringify(payload);
+            }
+
+            const response = await fetch(path, requestOptions);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `Game action failed with status ${response.status}`);
+            }
+
+            return data;
         }
 
         function renderLeaderboard() {
@@ -1694,14 +1861,17 @@
 
             // Save final score to leaderboard
             if (score > 0 && playerNameForSave) {
-                void syncLeaderboardToServer(playerNameForSave, score, maxStreak);
+                void syncLeaderboardToServer(playerNameForSave);
             }
 
+            hasCompletedGame = true;
             trackEvent('game_completed', {
                 final_score: score,
                 best_streak: maxStreak,
                 pokemon_seen: pokemonSeenCount,
-                generation: currentGenerationKey
+                generation: currentGenerationKey,
+                session_duration_seconds: getSessionDurationSeconds(),
+                visible_duration_seconds: getVisibleDurationSeconds()
             });
         }
 
@@ -1742,7 +1912,6 @@
                 abilities: data.abilities.map(a => a.ability.name)
             };
 
-            guessesRemaining = 3;
             trackEvent('pokemon_loaded', {
                 pokemon_number: randomId,
                 pokemon_seen: pokemonSeenCount,
@@ -1811,13 +1980,24 @@
 
             trackEvent('guess_submitted', {
                 attempt_number: 4 - guessesRemaining,
-                guess_length: guess.length
+                guess_length: guess.length,
+                generation: currentGenerationKey
             });
 
-            if (guess === currentPokemon.name.toLowerCase()) {
-                const pointsEarned = guessesRemaining; // 3 points for first try, 2 for second, 1 for third
-                score += pointsEarned;
-                streak++;
+            let outcome;
+            try {
+                outcome = await postGameAction('/api/game/guess', { guess });
+            } catch (error) {
+                console.error('Failed to submit guess:', error);
+                feedback.textContent = error.message || 'Could not submit your guess. Try again.';
+                feedback.className = 'feedback incorrect visible';
+                return;
+            }
+
+            applySessionState(outcome);
+
+            if (outcome.result === 'correct') {
+                const pointsEarned = Number(outcome.points_earned) || 0;
                 feedback.innerHTML = `<span class="feedback-title correct-title">Correct!</span><span class="points-earned">+${pointsEarned} point${pointsEarned > 1 ? 's' : ''}</span>`;
                 feedback.className = 'feedback correct visible';
                 img.className = 'pokemon-image reveal';
@@ -1825,7 +2005,6 @@
 
                 const line1 = wrapLetters("IT'S", [0], true);
                 const pokemonName = currentPokemon.name.toUpperCase();
-                // Give priority to vowels
                 const priorityIndices = [];
                 for (let i = 0; i < pokemonName.length; i++) {
                     if (['A', 'E', 'I', 'O', 'U'].includes(pokemonName[i])) {
@@ -1837,12 +2016,12 @@
 
                 revealed = true;
                 document.getElementById('guessInput').disabled = true;
-
-                updateStats();
-                await syncLeaderboardToServer(getPlayerNameForSave(), score, streak);
+                await syncLeaderboardToServer(getPlayerNameForSave());
 
                 trackEvent('pokemon_correct', {
                     pokemon_name: currentPokemon.name,
+                    generation: currentGenerationKey,
+                    attempt_number: Number(outcome.attempt_number) || 1,
                     points_earned: pointsEarned,
                     score: score,
                     streak: streak
@@ -1851,61 +2030,63 @@
                 setTimeout(() => {
                     transitionToNextPokemon();
                 }, 1000);
-            } else {
-                guessesRemaining--;
-
-                if (guessesRemaining > 0) {
-                    // Still have guesses left
-                    if (guessesRemaining === 2) {
-                        const typesHint = currentPokemon.types.join('  /  ');
-                        feedback.innerHTML = `<span class="feedback-title">Wrong!</span><span class="hint-emoji">🤫</span> Type:  <strong>${typesHint}</strong><br><span class="guesses-left">(${guessesRemaining} guesses left)</span>`;
-                    } else {
-                        const abilitiesHint = currentPokemon.abilities.join('  /  ');
-                        feedback.innerHTML = `<span class="feedback-title">Wrong!</span><span class="hint-emoji">🤫</span> Abilities:  <strong>${abilitiesHint}</strong><br><span class="guesses-left">(${guessesRemaining} guess left)</span>`;
-                    }
-                    feedback.className = 'feedback incorrect visible';
-
-                    trackEvent('pokemon_incorrect', {
-                        pokemon_name: currentPokemon.name,
-                        guesses_remaining: guessesRemaining
-                    });
-                } else {
-                    // Out of guesses - reveal Pokemon
-                    if (streak > 0) {
-                        streak = 0;
-                        await handleStreakBreak();
-                    }
-
-                    const pokemonNameCapitalized = currentPokemon.name.charAt(0).toUpperCase() + currentPokemon.name.slice(1);
-                    feedback.innerHTML = `<span class="feedback-title skipped-title">Out of guesses!</span><br>It was <strong>${pokemonNameCapitalized}</strong>`;
-                    feedback.className = 'feedback skipped visible';
-                    img.className = 'pokemon-image reveal';
-                    playRevealSound();
-
-                    const line1 = wrapLetters("IT'S", [0], true);
-                    const pokemonName = currentPokemon.name.toUpperCase();
-                    const priorityIndices = [];
-                    for (let i = 0; i < pokemonName.length; i++) {
-                        if (['A', 'E', 'I', 'O', 'U'].includes(pokemonName[i])) {
-                            priorityIndices.push(i);
-                        }
-                    }
-                    const line2 = wrapLetters(pokemonName + "!", priorityIndices, true);
-                    document.getElementById('questionTitle').innerHTML = line1 + '<br><span class="big-line">' + line2 + '</span>';
-
-                    revealed = true;
-                    document.getElementById('guessInput').disabled = true;
-
-                    trackEvent('pokemon_missed', {
-                        pokemon_name: currentPokemon.name
-                    });
-
-                    setTimeout(() => {
-                        transitionToNextPokemon();
-                    }, 2000);
-                }
-                updateStats();
+                return;
             }
+
+            if (outcome.result === 'incorrect') {
+                if (guessesRemaining === 2) {
+                    const typesHint = currentPokemon.types.join('  /  ');
+                    feedback.innerHTML = `<span class="feedback-title">Wrong!</span><span class="hint-emoji">🤫</span> Type:  <strong>${typesHint}</strong><br><span class="guesses-left">(${guessesRemaining} guesses left)</span>`;
+                } else {
+                    const abilitiesHint = currentPokemon.abilities.join('  /  ');
+                    feedback.innerHTML = `<span class="feedback-title">Wrong!</span><span class="hint-emoji">🤫</span> Abilities:  <strong>${abilitiesHint}</strong><br><span class="guesses-left">(${guessesRemaining} guess left)</span>`;
+                }
+                feedback.className = 'feedback incorrect visible';
+
+                trackEvent('pokemon_incorrect', {
+                    pokemon_name: currentPokemon.name,
+                    generation: currentGenerationKey,
+                    attempt_number: Number(outcome.attempt_number) || 1,
+                    pokemon_seen: pokemonSeenCount,
+                    guesses_remaining: guessesRemaining
+                });
+                return;
+            }
+
+            if (outcome.streak_broken) {
+                await handleStreakBreak(Number(outcome.previous_streak) || 0);
+            }
+
+            const pokemonNameCapitalized = currentPokemon.name.charAt(0).toUpperCase() + currentPokemon.name.slice(1);
+            feedback.innerHTML = `<span class="feedback-title skipped-title">Out of guesses!</span><br>It was <strong>${pokemonNameCapitalized}</strong>`;
+            feedback.className = 'feedback skipped visible';
+            img.className = 'pokemon-image reveal';
+            playRevealSound();
+
+            const line1 = wrapLetters("IT'S", [0], true);
+            const pokemonName = currentPokemon.name.toUpperCase();
+            const priorityIndices = [];
+            for (let i = 0; i < pokemonName.length; i++) {
+                if (['A', 'E', 'I', 'O', 'U'].includes(pokemonName[i])) {
+                    priorityIndices.push(i);
+                }
+            }
+            const line2 = wrapLetters(pokemonName + "!", priorityIndices, true);
+            document.getElementById('questionTitle').innerHTML = line1 + '<br><span class="big-line">' + line2 + '</span>';
+
+            revealed = true;
+            document.getElementById('guessInput').disabled = true;
+
+            trackEvent('pokemon_missed', {
+                pokemon_name: currentPokemon.name,
+                generation: currentGenerationKey,
+                attempts_used: Number(outcome.attempts_used) || 3,
+                pokemon_seen: pokemonSeenCount
+            });
+
+            setTimeout(() => {
+                transitionToNextPokemon();
+            }, 2000);
         }
 
         async function skipPokemon() {
@@ -1913,6 +2094,18 @@
 
             const feedback = document.getElementById('feedback');
             const img = document.getElementById('pokemonImage');
+
+            let outcome;
+            try {
+                outcome = await postGameAction('/api/game/skip');
+            } catch (error) {
+                console.error('Failed to skip Pokemon:', error);
+                feedback.textContent = error.message || 'Could not skip this Pokemon. Try again.';
+                feedback.className = 'feedback incorrect visible';
+                return;
+            }
+
+            applySessionState(outcome);
 
             const pokemonNameCapitalized = currentPokemon.name.charAt(0).toUpperCase() + currentPokemon.name.slice(1);
             feedback.innerHTML = `<span class="feedback-title skipped-title">Skipped!</span><br>It was <strong>${pokemonNameCapitalized}</strong>`;
@@ -1933,18 +2126,18 @@
             document.getElementById('questionTitle').innerHTML = line1 + '<br><span class="big-line">' + line2 + '</span>';
 
             revealed = true;
-            if (streak > 0) {
-                streak = 0;
-                await handleStreakBreak();
+            if (outcome.streak_broken) {
+                await handleStreakBreak(Number(outcome.previous_streak) || 0);
             }
             document.getElementById('guessInput').disabled = true;
 
             trackEvent('pokemon_skip', {
                 pokemon_name: currentPokemon.name,
+                generation: currentGenerationKey,
+                attempts_used: Number(outcome.attempts_used) || 0,
+                pokemon_seen: pokemonSeenCount,
                 score: score
             });
-
-            updateStats();
 
             setTimeout(() => {
                 transitionToNextPokemon();
@@ -1968,26 +2161,14 @@
             document.getElementById('currentScore').textContent = score;
             document.getElementById('currentStreak').textContent = streak;
 
-            // Track max streak
-            if (streak > maxStreak) {
-                maxStreak = streak;
-            }
-
             // Update leaderboard to show current position
             renderLeaderboard();
         }
 
-        async function handleStreakBreak() {
-            const playerName = getPlayerNameForSave();
-            const streakBeforeReset = maxStreak;
-            const scoreBeforeReset = score;
-            if (score > 0 && playerName) {
-                await syncLeaderboardToServer(playerName, score, streak);
-            }
-
+        async function handleStreakBreak(previousStreak) {
             trackEvent('streak_broken', {
-                score: scoreBeforeReset,
-                best_streak: streakBeforeReset
+                score: score,
+                best_streak: previousStreak
             });
         }
 
@@ -2019,8 +2200,11 @@
             streak = 0;
             maxStreak = 0;
             revealed = false;
-            guessesRemaining = 3;
+            guessesRemaining = 0;
             pokemonSeenCount = 0;
+            currentLeaderboardRecordId = null;
+            lastLeaderboardSyncSnapshot = null;
+            hasCompletedGame = false;
             updateStats();
         }
 
@@ -2058,8 +2242,9 @@
                 }
 
                 const sessionState = await response.json();
-                applySessionState(sessionState);
                 resetGameState();
+                applySessionState(sessionState);
+                hasStartedGame = true;
                 await fetchRandomPokemon();
 
                 trackEvent('game_started', {
@@ -2079,6 +2264,9 @@
                 }, 50);
             } catch (error) {
                 console.error('Failed to start game session:', error);
+                trackEvent('game_start_failed', {
+                    generation: selectedGeneration
+                });
                 setGenerationError('Could not start this generation. Try again.');
                 startRoundButton.disabled = false;
                 startRoundButton.innerHTML = '<i class="fas fa-bolt"></i> Start Round';
@@ -2091,6 +2279,8 @@
 
         // Allow Enter key to submit
         document.addEventListener('DOMContentLoaded', async () => {
+            trackDeviceContext();
+
             document.getElementById('guessInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     submitGuess();
@@ -2110,13 +2300,30 @@
                 }
             });
 
+            document.addEventListener('visibilitychange', () => {
+                updateVisibleDuration();
+            });
+
+            window.addEventListener('pagehide', () => {
+                trackSessionExit('pagehide');
+            });
+
+            window.addEventListener('beforeunload', () => {
+                trackSessionExit('beforeunload');
+            });
+
             try {
                 await Promise.all([
                     fetchLeaderboardFromServer(),
                     fetchGenerationOptions()
                 ]);
+                trackEvent('game_initialized', {
+                    available_generations: generationOptions.length,
+                    leaderboard_entries: leaderboardEntries.length
+                });
             } catch (error) {
                 console.error('Failed to initialize game data:', error);
+                trackEvent('game_initialization_failed');
                 setGenerationError('Could not load generations. Refresh and try again.');
             }
 
